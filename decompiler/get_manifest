@@ -3,9 +3,10 @@
 import os
 import sys
 
-CUR_DIR = os.getcwd()
-TOOL_DIR = os.path.abspath(CUR_DIR +'/../tools')
-TEMP_DIR = os.path.abspath(CUR_DIR + '/temp')
+global EXE_DIR
+global TOOL_DIR
+global CUR_DIR
+global TEMP_DIR
 
 def _Usage():
     print >>sys.stderr,\
@@ -105,4 +106,9 @@ def main(orig_args):
         
 
 if __name__ == '__main__':
+    EXE_DIR = os.path.dirname(os.readlink(sys.argv[0]))
+    TOOL_DIR = os.path.abspath(EXE_DIR +'/../tools')
+    CUR_DIR = os.getcwd()
+    TEMP_DIR = os.path.abspath(CUR_DIR + '/temp')
+    
     main(sys.argv[1:])
