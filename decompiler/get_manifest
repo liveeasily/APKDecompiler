@@ -1,0 +1,108 @@
+#!/usr/bin/python
+
+import os
+import sys
+
+CUR_DIR = os.getcwd()
+TOOL_DIR = os.path.abspath(CUR_DIR +'/../tools')
+TEMP_DIR = os.path.abspath(CUR_DIR + '/temp')
+
+def _Usage():
+    print >>sys.stderr,\
+"""usage: get_manifest <file.apk> [<out_file>]
+"""
+    sys.exit(1)
+    
+def remove_temp_dir():
+    if os.path.exists(TEMP_DIR):
+        cmd = 'rm -rf ' + TEMP_DIR
+        excute_cmd(cmd)
+        
+def unzip_file_into_dir(file, dir):
+    os.mkdir(dir, 0777)
+    import zipfile
+    zfobj = zipfile.ZipFile(file)
+    zfobj.extractall(dir)
+
+# return True or False, stdout or stderr
+def excute_cmd(cmd):
+    from subprocess import Popen, PIPE
+    cmd_proc = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
+    sout, serr = cmd_proc.communicate()
+    if 'Exception in thread' in serr:
+        print serr
+        return False, serr
+    
+    return True, sout
+    
+
+def get_manifest_using_apktool(src_apk):
+    cmd = TOOL_DIR + "/apktool d " + src_apk + ' '  + TEMP_DIR
+    success, msg = excute_cmd(cmd)
+    if not success:
+        remove_temp_dir()
+        return None
+
+    cmd = 'cat ' + TEMP_DIR + '/AndroidManifest.xml'
+    success, msg = excute_cmd(cmd)
+    if not success:
+        remove_temp_dir()
+        return None
+    else:
+        manifest = msg
+    
+    remove_temp_dir() 
+    return manifest
+    
+def get_manifest_using_axmlprinter(src_apk):
+    #print '[start] get_manifest_using_axmlprinter'
+    # 1. upzip
+    unzip_file_into_dir(src_apk, TEMP_DIR)
+
+    cmd = 'java -jar ' + TOOL_DIR + '/AXMLPrinter.jar ' + TEMP_DIR + '/AndroidManifest.xml'
+    #print 'cmd = ' + cmd
+    success, msg = excute_cmd(cmd)
+    if not success:
+        remove_temp_dir()
+        return None
+
+    manifest = msg
+    remove_temp_dir()
+    return manifest
+    
+
+def get_manifest(src_apk):
+    manifest = get_manifest_using_apktool(src_apk)
+    if manifest:
+        return manifest
+    else:
+        return get_manifest_using_axmlprinter(src_apk)
+    
+
+def main(orig_args):
+    len_args = len(orig_args)
+    src_apk = ''
+    out_file = ''
+    if len_args < 1:
+        _Usage()
+    elif len_args == 1:
+        src_apk = orig_args[0] 
+    elif len_args == 2:
+        src_apk, out_file = orig_args
+    else:
+        _Usage()
+
+    manifest = get_manifest(src_apk)
+    if manifest:
+        if out_file:
+            fp = open(out_file, 'w')
+            fp.write(manifest)
+            fp.close()
+        else:
+            print manifest
+    else:
+        print "Sorry, I cannot get AndroidManifest.xml from " + src_apk
+        
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
